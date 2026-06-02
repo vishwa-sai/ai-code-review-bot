@@ -34,18 +34,23 @@ jobs:
                 messages: [
                   {
                     role: "user",
-                    content: "Review this code:\n\n" + diff.data
+                    content: "Act as a senior software engineer and review this pull request. Give suggestions, bugs, and improvements:\n\n" + diff.data
                   }
                 ]
               })
             });
 
             const data = await response.json();
+
+            if (!data.choices) {
+              throw new Error("Groq API failed: " + JSON.stringify(data));
+            }
+
             const review = data.choices[0].message.content;
 
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              body: "🤖 AI Review:\n\n" + review
+              body: "🤖 **AI Code Review (Groq):**\n\n" + review
             });
