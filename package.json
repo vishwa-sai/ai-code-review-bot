@@ -41,7 +41,7 @@
     "chatgpt": "^5.1.1",
     "eslint": "^8.36.0",
     "eslint-plugin-github": "^4.6.1",
-    "eslint-plugin-jest": "^27.2.1",
+    "eslint-plugin-jest": "^29.15.2",
     "jest": "^27.2.5",
     "js-yaml": "^4.1.0",
     "prettier": "2.8.4",
