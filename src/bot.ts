@@ -1,7 +1,7 @@
 import './fetch-polyfill.js'
-
+import axios from "axios";
 import * as core from '@actions/core'
-import * as openai from 'chatgpt'
+
 import * as optionsJs from './options.js'
 import * as utils from './utils.js'
 
@@ -12,27 +12,13 @@ export type Ids = {
 }
 
 export class Bot {
-  private api: openai.ChatGPTAPI | null = null // not free
+   // not free
 
   private options: optionsJs.Options
 
   constructor(options: optionsJs.Options) {
     this.options = options
-    if (process.env.OPENAI_API_KEY) {
-      this.api = new openai.ChatGPTAPI({
-        systemMessage: options.system_message,
-        apiKey: process.env.OPENAI_API_KEY,
-        debug: options.debug,
-        completionParams: {
-          temperature: options.openai_model_temperature,
-          model: options.openai_model
-        }
-      })
-    } else {
-      const err =
-        "Unable to initialize the OpenAI API, both 'OPENAI_API_KEY' environment variable are not available"
-      throw new Error(err)
-    }
+
   }
 
   chat = async (message: string, ids: Ids): Promise<[string, Ids]> => {
@@ -46,64 +32,35 @@ export class Bot {
       return [response, new_ids]
     }
   }
+private chat_ = async (message: string, ids: Ids): Promise<[string, Ids]> => {
+  if (!message) return ["", {}];
 
-  private chat_ = async (message: string, ids: Ids): Promise<[string, Ids]> => {
-    // record timing
-    const start = Date.now()
-    if (!message) {
-      return ['', {}]
-    }
-    if (this.options.debug) {
-      core.info(`sending to openai: ${message}`)
-    }
+  try {
+    const response = await axios.post(
+      "https://api.groq.com/openai/v1/chat/completions",
+      {
+        model: "llama3-70b-8192",
+        messages: [
+          {
+            role: "user",
+            content: message,
+          },
+        ],
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
 
-    let response: openai.ChatMessage | null = null
+    const text = response.data.choices[0].message.content;
 
-    if (this.api) {
-      const opts: openai.SendMessageOptions = {
-        timeoutMs: this.options.openai_timeout_ms
-      }
-      if (ids.parentMessageId) {
-        opts.parentMessageId = ids.parentMessageId
-      }
-      try {
-        response = await utils.retry(
-          this.api.sendMessage.bind(this.api),
-          [message, opts],
-          this.options.openai_retries
-        )
-      } catch (e: any) {
-        core.info(
-          `response: ${response}, failed to stringify: ${e}, backtrace: ${e.stack}`
-        )
-      }
-      const end = Date.now()
-      core.info(`response: ${JSON.stringify(response)}`)
-      core.info(
-        `openai sendMessage (including retries) response time: ${
-          end - start
-        } ms`
-      )
-    } else {
-      core.setFailed('The OpenAI API is not initialized')
-    }
-    let response_text = ''
-    if (response) {
-      response_text = response.text
-    } else {
-      core.warning('openai response is null')
-    }
-    // remove the prefix "with " in the response
-    if (response_text.startsWith('with ')) {
-      response_text = response_text.substring(5)
-    }
-    if (this.options.debug) {
-      core.info(`openai responses: ${response_text}`)
-    }
-    const new_ids: Ids = {
-      parentMessageId: response?.id,
-      conversationId: response?.conversationId
-    }
-    return [response_text, new_ids]
+    return [text, {}];
+  } catch (error: any) {
+    core.warning(`Groq error: ${error.message}`);
+    return ["Error from Groq API", {}];
   }
-}
+};
+  }
