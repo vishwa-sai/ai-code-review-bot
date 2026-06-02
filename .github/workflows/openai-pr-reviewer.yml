@@ -42,9 +42,9 @@ jobs:
 
             const data = await response.json();
 
-            if (!data.choices) {
-              throw new Error("Groq API failed: " + JSON.stringify(data));
-            }
+                if (!data || !data.choices || data.choices.length === 0) {
+                      throw new Error("Groq API Error: " + JSON.stringify(data));
+                }
 
             const review = data.choices[0].message.content;
 
